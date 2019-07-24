@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BasisAssignment</string>
+    <string name="count_text">%d/%d</string>
 </resources>

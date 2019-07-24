@@ -41,6 +41,9 @@ ext {
     stack_view = '2.1.0'
 
 
+    // Networking
+    retrofit_version = '2.4.0'
+    okhttp_version = '3.11.0'
 
     // Reactive
     rxjava_version = '2.2.3'
