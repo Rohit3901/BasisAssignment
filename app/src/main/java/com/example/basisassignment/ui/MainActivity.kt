@@ -1,17 +1,18 @@
 package com.example.basisassignment.ui
 
-import android.content.Context
+
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.animation.DecelerateInterpolator
-import com.example.basisassignment.BuildConfig
+import android.widget.Toast
 import com.example.basisassignment.R
 import com.example.basisassignment.adapter.CardAdapter
 import com.example.basisassignment.data.MyJsonConverter
 import com.example.basisassignment.data.model.PostModel
 import com.example.basisassignment.data.remote.NetworkService
+import com.example.basisassignment.utils.Common
 import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import com.yuyakaido.android.cardstackview.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -30,9 +31,10 @@ class MainActivity : AppCompatActivity(), CardStackListener {
 
     private var baseUrl = "https://git.io/"
     lateinit var cardStackLayoutManager: CardStackLayoutManager
-    private var myCompositeDisposable: CompositeDisposable? = null
+    private var myCompositeDisposable: CompositeDisposable = CompositeDisposable()
     private var size:Int = 0
     private lateinit var adapter:CardAdapter
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +63,8 @@ class MainActivity : AppCompatActivity(), CardStackListener {
             .build()
             .create(NetworkService::class.java)
 
+
+        myCompositeDisposable.add(
             requestInterface.getDummyData()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.io())
@@ -68,8 +72,10 @@ class MainActivity : AppCompatActivity(), CardStackListener {
                     progressBar.visibility = View.GONE
                     handleResponse(it)
                 },{
-                    
+                    Toast.makeText(this, "Error "+it.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
                 })
+        )
+
 
     }
 
@@ -95,7 +101,7 @@ class MainActivity : AppCompatActivity(), CardStackListener {
         cardStackLayoutManager.setScaleInterval(0.95f)
         stack_cards.layoutManager = cardStackLayoutManager
         stack_cards.adapter = adapter
-        handleChanges()
+        updateData()
 
 
         // Button Interactions
@@ -103,6 +109,7 @@ class MainActivity : AppCompatActivity(), CardStackListener {
             if (cardStackLayoutManager.topPosition != 0) {
                 adapter.notifyDataSetChanged()
                 stack_cards.smoothScrollToPosition(0)
+                count_text.visibility = View.VISIBLE
             }
         }
 
@@ -122,10 +129,10 @@ class MainActivity : AppCompatActivity(), CardStackListener {
 
     }
 
-    private fun handleChanges() {
+    private fun updateData() {
         val pos = cardStackLayoutManager.topPosition
         val count = cardStackLayoutManager.itemCount
-
+        progressHorizontal.progress = Common().calculatePercentage(pos,count)
         if(pos<count) {
             count_text.text = getString(R.string.count_text, pos + 1, count)
             if (pos == 0) {
@@ -142,7 +149,7 @@ class MainActivity : AppCompatActivity(), CardStackListener {
             reload.visibility = View.GONE
         }
         else{
-
+            count_text.visibility = View.GONE
             reload.visibility = View.VISIBLE
         }
 
@@ -154,7 +161,7 @@ class MainActivity : AppCompatActivity(), CardStackListener {
     }
 
     override fun onCardSwiped(direction: Direction?) {
-        handleChanges()
+        updateData()
     }
 
     override fun onCardCanceled() {
@@ -162,16 +169,14 @@ class MainActivity : AppCompatActivity(), CardStackListener {
     }
 
     override fun onCardRewound() {
-        handleChanges()
+        updateData()
     }
 
 
     override fun onDestroy() {
         super.onDestroy()
-
-//Clear all your disposables//
-
-        myCompositeDisposable?.clear()
+        //Clear all your disposables//
+        myCompositeDisposable.clear()
 
     }
 }
