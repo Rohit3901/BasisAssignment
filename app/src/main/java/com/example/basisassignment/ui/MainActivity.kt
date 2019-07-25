@@ -13,6 +13,9 @@ import com.example.basisassignment.data.MyJsonConverter
 import com.example.basisassignment.data.model.PostModel
 import com.example.basisassignment.data.remote.NetworkService
 import com.example.basisassignment.utils.Common
+import com.example.basisassignment.utils.Logger
+import com.example.basisassignment.utils.OnSwipeTouchListener
+import com.example.basisassignment.utils.network.NetworkHelper
 import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import com.yuyakaido.android.cardstackview.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -32,21 +35,26 @@ class MainActivity : AppCompatActivity(), CardStackListener {
     private var baseUrl = "https://git.io/"
     lateinit var cardStackLayoutManager: CardStackLayoutManager
     private var myCompositeDisposable: CompositeDisposable = CompositeDisposable()
-    private var size:Int = 0
-    private lateinit var adapter:CardAdapter
-
+    private var size: Int = 0
+    private lateinit var adapter: CardAdapter
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        progressBar.visibility = View.VISIBLE
+
         loadData()
+
+        retry_btn.setOnClickListener {
+            loadData()
+        }
 
     }
 
     private fun loadData() {
-            val requestInterface = Retrofit.Builder()
+
+        //retrofit initializer
+        val requestInterface = Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(
                 OkHttpClient.Builder()
@@ -63,24 +71,32 @@ class MainActivity : AppCompatActivity(), CardStackListener {
             .build()
             .create(NetworkService::class.java)
 
+        //network call to fetch data from api
+        if (NetworkHelper(this).isNetworkConnected()) {
+            progressBar.visibility = View.VISIBLE
+            retry_btn.visibility = View.GONE
+            myCompositeDisposable.add(
+                requestInterface.getDummyData()
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .subscribe({
+                        progressBar.visibility = View.GONE
+                        handleResponse(it)
+                    }, {
+                        Toast.makeText(this@MainActivity, "Error " + it.getLocalizedMessage(), Toast.LENGTH_SHORT)
+                            .show();
+                    })
+            )
+        } else {
+            Toast.makeText(this@MainActivity, getString(R.string.network_connection_error), Toast.LENGTH_LONG).show()
+            retry_btn.visibility = View.VISIBLE
 
-        myCompositeDisposable.add(
-            requestInterface.getDummyData()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.io())
-                .subscribe({
-                    progressBar.visibility = View.GONE
-                    handleResponse(it)
-                },{
-                    Toast.makeText(this, "Error "+it.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                })
-        )
-
+        }
 
     }
 
     private fun handleResponse(postModel: PostModel?) {
-        Log.e(TAG,postModel!!.data.size.toString())
+        Logger.d(TAG, postModel!!.data.size.toString())
         size = postModel.data.size
         val rewindSetting = RewindAnimationSetting.Builder()
             .setDirection(Direction.Top)
@@ -89,8 +105,8 @@ class MainActivity : AppCompatActivity(), CardStackListener {
             .build()
 
         cardStackLayoutManager = CardStackLayoutManager(applicationContext, this)
-        adapter = CardAdapter(postModel.data,this);
-        cardStackLayoutManager.setDirections(arrayListOf(Direction.Right, Direction.Left))
+        adapter = CardAdapter(postModel.data, this);
+        cardStackLayoutManager.setDirections(arrayListOf(Direction.Right, Direction.Left, Direction.Bottom))
         cardStackLayoutManager.setCanScrollHorizontal(true)
         cardStackLayoutManager.setVisibleCount(3)
         cardStackLayoutManager.setStackFrom(StackFrom.Bottom)
@@ -103,7 +119,6 @@ class MainActivity : AppCompatActivity(), CardStackListener {
         stack_cards.adapter = adapter
         updateData()
 
-
         // Button Interactions
         reload.setOnClickListener {
             if (cardStackLayoutManager.topPosition != 0) {
@@ -112,43 +127,43 @@ class MainActivity : AppCompatActivity(), CardStackListener {
                 count_text.visibility = View.VISIBLE
             }
         }
-
+        //previous button to show previous card
         previous.setOnClickListener {
             stack_cards.rewind()
         }
-
+        //next button to show next card
         next.setOnClickListener {
             stack_cards.swipe()
         }
 
-        /*container.setOnTouchListener(object : OnSwipeTouchListener(this@MainActivity) {
+        //bottom swipe to show previous card
+        stack_cards.setOnTouchListener(object : OnSwipeTouchListener(this@MainActivity) {
             override fun onSwipeDown() {
-                cards.rewind()
+                stack_cards.rewind()
             }
-        })*/
+        })
 
     }
 
     private fun updateData() {
         val pos = cardStackLayoutManager.topPosition
         val count = cardStackLayoutManager.itemCount
-        progressHorizontal.progress = Common().calculatePercentage(pos,count)
-        if(pos<count) {
+
+        //set Progress bar position
+        progressHorizontal.progress = Common().calculatePercentage(pos, count)
+        if (pos < count) {
             count_text.text = getString(R.string.count_text, pos + 1, count)
             if (pos == 0) {
                 previous.visibility = View.GONE
                 next.visibility = View.VISIBLE
-            }
-            else if(pos==count){
+            } else if (pos == count) {
                 next.visibility = View.GONE
-            }
-            else {
+            } else {
                 previous.visibility = View.VISIBLE
                 next.visibility = View.VISIBLE
             }
             reload.visibility = View.GONE
-        }
-        else{
+        } else {
             count_text.visibility = View.GONE
             reload.visibility = View.VISIBLE
         }
