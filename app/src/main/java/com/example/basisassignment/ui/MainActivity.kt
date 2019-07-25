@@ -38,7 +38,6 @@ class MainActivity : AppCompatActivity(), CardStackListener {
     private var size: Int = 0
     private lateinit var adapter: CardAdapter
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
